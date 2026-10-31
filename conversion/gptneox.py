@@ -28,6 +28,7 @@ class GPTNeoXModel(TextModel):
         self.gguf_writer.add_head_count(self.hparams["num_attention_heads"])
         self.gguf_writer.add_parallel_residual(self.hparams.get("use_parallel_residual", True))
         self.gguf_writer.add_layer_norm_eps(self.hparams["layer_norm_eps"])
+        self.gguf_writer.add_hidden_act(self.hparams.get("hidden_act", "gelu"))
 
     def modify_tensors(self, data_torch: Tensor, name: str, bid: int | None) -> Iterable[tuple[str, Tensor]]:
         n_head = self.hparams.get("n_head", self.hparams.get("num_attention_heads"))

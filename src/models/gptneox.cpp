@@ -4,6 +4,15 @@ void llama_model_gptneox::load_arch_hparams(llama_model_loader & ml) {
     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_EPS, hparams.f_norm_eps);
     ml.get_key(LLM_KV_USE_PARALLEL_RESIDUAL,   hparams.use_par_res);
 
+    // HF GPT-NeoX defaults to the exact (erf) GELU, gpt-neox-20b uses "gelu_fast" (tanh approximation)
+    hparams.llm_ffn_op = LLM_FFN_GELU_ERF;
+    std::string hidden_act;
+    if (ml.get_key(LLM_KV_HIDDEN_ACT, hidden_act, false)) {
+        if (llm_ffn_op_type_from_string(hidden_act, LLM_FFN_GEGLU_ERF) == LLM_FFN_GEGLU) {
+            hparams.llm_ffn_op = LLM_FFN_GELU;
+        }
+    }
+
     switch (hparams.n_layer()) {
         case 6:
             switch (hparams.n_ff()) {
@@ -157,7 +166,7 @@ llama_model_gptneox::graph::graph(const llama_model & model, const llm_graph_par
                     NULL,                      NULL,                        NULL,
                     model.layers[il].ffn_down, model.layers[il].ffn_down_b, NULL,
                     NULL,
-                    LLM_FFN_GELU, LLM_FFN_SEQ, il);
+                    hparams.llm_ffn_op, LLM_FFN_SEQ, il);
             cb(cur, "ffn_out", il);
 
             cur = ggml_add(ctx0, cur, inpL);
@@ -189,7 +198,7 @@ llama_model_gptneox::graph::graph(const llama_model & model, const llm_graph_par
                     NULL,                      NULL,                        NULL,
                     model.layers[il].ffn_down, model.layers[il].ffn_down_b, NULL,
                     NULL,
-                    LLM_FFN_GELU, LLM_FFN_SEQ, il);
+                    hparams.llm_ffn_op, LLM_FFN_SEQ, il);
             cb(cur, "ffn_out", il);
 
             cur = ggml_add(ctx0, cur, ffn_inp);
